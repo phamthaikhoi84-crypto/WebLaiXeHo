@@ -1,0 +1,12 @@
+﻿namespace DriverService.Domain.Entities;
+
+public class Driver
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid UserId { get; set; }
+    public bool IsOnline { get; set; } = false;
+    public string CurrentLocation { get; set; } = string.Empty; // Có thể lưu dạng Toạ độ (Lat, Long)
+    public string? AvatarUrl { get; set; }
+
+    public User User { get; set; } = null!;
+}

@@ -1,0 +1,46 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DriverService.API", "DriverService.API\DriverService.API.csproj", "{7D4E7274-96D1-4D8D-9F1D-2104A6F35319}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DriverService.Application", "DriverService.Application\DriverService.Application.csproj", "{C33382BF-CE53-45E1-98C5-30C7219BD0CF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DriverService.Domain", "DriverService.Domain\DriverService.Domain.csproj", "{4078BA2B-5A9A-4EC8-BAB4-5C05AE7274AE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DriverService.Infrastructure", "DriverService.Infrastructure\DriverService.Infrastructure.csproj", "{FE435959-CB6B-439E-94D5-CC889EC2C1A8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DriverService.Shared", "DriverService.Shared\DriverService.Shared.csproj", "{F2B4708C-5039-4F3A-921F-F4A344728FE6}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{7D4E7274-96D1-4D8D-9F1D-2104A6F35319}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7D4E7274-96D1-4D8D-9F1D-2104A6F35319}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7D4E7274-96D1-4D8D-9F1D-2104A6F35319}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7D4E7274-96D1-4D8D-9F1D-2104A6F35319}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C33382BF-CE53-45E1-98C5-30C7219BD0CF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C33382BF-CE53-45E1-98C5-30C7219BD0CF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C33382BF-CE53-45E1-98C5-30C7219BD0CF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C33382BF-CE53-45E1-98C5-30C7219BD0CF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4078BA2B-5A9A-4EC8-BAB4-5C05AE7274AE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4078BA2B-5A9A-4EC8-BAB4-5C05AE7274AE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4078BA2B-5A9A-4EC8-BAB4-5C05AE7274AE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4078BA2B-5A9A-4EC8-BAB4-5C05AE7274AE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FE435959-CB6B-439E-94D5-CC889EC2C1A8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FE435959-CB6B-439E-94D5-CC889EC2C1A8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FE435959-CB6B-439E-94D5-CC889EC2C1A8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FE435959-CB6B-439E-94D5-CC889EC2C1A8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F2B4708C-5039-4F3A-921F-F4A344728FE6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F2B4708C-5039-4F3A-921F-F4A344728FE6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F2B4708C-5039-4F3A-921F-F4A344728FE6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F2B4708C-5039-4F3A-921F-F4A344728FE6}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

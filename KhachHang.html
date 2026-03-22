@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>App Khách Hàng - Đợi Xe</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #e3f2fd; }
+        .container { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        input, button { width: 100%; padding: 10px; margin-bottom: 10px; box-sizing: border-box; }
+        button { background: #1976d2; color: white; border: none; font-size: 16px; cursor: pointer; border-radius: 4px; }
+        #mapSimulation { height: 200px; background: #eee; border: 2px dashed #ccc; margin-top: 20px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 24px; color: #555; }
+        #logArea { height: 150px; overflow-y: auto; background: #222; color: #fff; padding: 10px; margin-top: 10px; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>🔵 Màn hình Khách Hàng</h2>
+        <input type="text" id="tokenInput" placeholder="Nhập Token của KHÁCH HÀNG vào đây...">
+        <button id="connectBtn" onclick="connectToHub()">Mở App Khách</button>
+
+        <div id="mapSimulation">Đang chờ tài xế...</div>
+
+        <div id="logArea"></div>
+    </div>
+
+    <script>
+        let connection;
+
+        async function connectToHub() {
+            const token = document.getElementById('tokenInput').value.trim();
+            if (!token) return alert("Vui lòng nhập Token!");
+
+            connection = new signalR.HubConnectionBuilder()
+                .withUrl("http://localhost:5173/hubs/ride", { accessTokenFactory: () => token })
+                .withAutomaticReconnect().build();
+
+            // 🌟 LẮNG NGHE TỌA ĐỘ TÀI XẾ GỬI VỀ
+            connection.on("LocationUpdated", (lat, lng) => {
+                const mapBox = document.getElementById('mapSimulation');
+                const logBox = document.getElementById('logArea');
+                
+                // Cập nhật lên "Bản đồ"
+                mapBox.innerHTML = `🚕 Xe đang ở: <br> ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+                mapBox.style.borderColor = "#ff9800";
+                mapBox.style.color = "#ff9800";
+
+                // Ghi log
+                logBox.innerHTML += `<div>[${new Date().toLocaleTimeString()}] Tọa độ: ${lat.toFixed(5)}, ${lng.toFixed(5)}</div>`;
+                logBox.scrollTop = logBox.scrollHeight;
+            });
+            // 🌟 LẮNG NGHE TRẠNG THÁI CHUYẾN XE TỪ SERVER
+            connection.on("RideStatusUpdated", (status) => {
+                const logBox = document.getElementById('logArea');
+                const mapBox = document.getElementById('mapSimulation');
+
+                if (status === "Completed") {
+                    // Cập nhật giao diện khi hoàn thành
+                    mapBox.innerHTML = `🏁 CHUYẾN XE ĐÃ HOÀN THÀNH!<br><span style="font-size: 16px;">Cảm ơn bạn đã sử dụng dịch vụ.</span>`;
+                    mapBox.style.borderColor = "#4caf50";
+                    mapBox.style.color = "#4caf50";
+                    mapBox.style.background = "#e8f5e9";
+                    
+                    logBox.innerHTML += `<div>[${new Date().toLocaleTimeString()}] 💚 Đã đến nơi an toàn.</div>`;
+                    logBox.scrollTop = logBox.scrollHeight;
+                }
+            });
+
+            await connection.start();
+            document.getElementById('logArea').innerHTML += "<div>✅ Đã kết nối hệ thống. Đang đợi xe đến...</div>";
+            document.getElementById('connectBtn').disabled = true;
+        }
+    </script>
+</body>
+</html>

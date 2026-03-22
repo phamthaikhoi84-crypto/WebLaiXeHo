@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>App Tài Xế - Đợi Cuốc</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f0f2f5; }
+        .container { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        input { width: 100%; padding: 10px; margin-bottom: 10px; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; background: #28a745; color: white; border: none; font-size: 16px; cursor: pointer; border-radius: 4px; }
+        button:disabled { background: #ccc; }
+        #logArea { height: 300px; overflow-y: auto; background: #222; color: #0f0; padding: 10px; margin-top: 20px; font-family: monospace; border-radius: 4px; }
+        .ride-alert { color: #ffeb3b; font-size: 1.1em; font-weight: bold; border: 1px dashed #ffeb3b; padding: 5px; margin-top: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>🟢 Màn hình Tài Xế</h2>
+        <p>1. Copy Token của tài xế (Bỏ chữ Bearer đi) dán vào đây:</p>
+        <input type="text" id="tokenInput" placeholder="eyJhbGciOiJIUzI1NiIs...">
+        
+        <button id="connectBtn" onclick="connectToHub()">2. Bật Online (Kết nối hệ thống)</button>
+
+        <div id="logArea">
+            <div>Hệ thống đang chờ kết nối...</div>
+        </div>
+    </div>
+
+    <script>
+    let connection;
+    let gpsInterval;
+    function logInfo(msg) {
+        const logBox = document.getElementById('logArea');
+        logBox.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${msg}</div>`;
+        logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    async function connectToHub() {
+        const token = document.getElementById('tokenInput').value.trim();
+        if (!token) { alert("Vui lòng nhập Token!"); return; }
+
+        connection = new signalR.HubConnectionBuilder()
+            .withUrl("http://localhost:5173/hubs/ride", {
+                accessTokenFactory: () => token
+            })
+            .withAutomaticReconnect()
+            .build();
+
+        // Xử lý khi có cuốc mới nổ
+        connection.on("ReceiveNewRideRequest", (ride) => {
+            const logBox = document.getElementById('logArea');
+            // Tạo một khung UI mới có chứa nút Nhận Chuyến
+            const rideHtml = `
+                <div class="ride-alert" id="ride-${ride.id}">
+                    🔥 <strong>CÓ KHÁCH ĐẶT XE!</strong><br>
+                    MÃ: ${ride.id} <br>
+                    Đón: ${ride.pickupLocation} -> Đi: ${ride.destination} <br>
+                    Giá: ${ride.price} VNĐ <br>
+                    <button onclick="acceptRide('${ride.id}')" style="margin-top: 10px; background: #ff9800;">Nhận Chuyến Ngay</button>
+                </div>
+            `;
+            logBox.innerHTML += rideHtml;
+            logBox.scrollTop = logBox.scrollHeight;
+        });
+
+        // Lắng nghe thông báo từ Server khi trạng thái chuyến xe thay đổi
+        connection.on("RideStatusUpdated", (status) => {
+            logInfo(`🔔 Cập nhật hệ thống: Chuyến xe đã chuyển sang trạng thái [${status}]`);
+        });
+
+        try {
+            await connection.start();
+            logInfo("✅ KẾT NỐI THÀNH CÔNG! Đang lắng nghe cuốc xe mới...");
+            document.getElementById('connectBtn').disabled = true;
+            document.getElementById('connectBtn').innerText = "Đang Online";
+        } catch (err) {
+            logInfo("❌ Lỗi kết nối: " + err.toString());
+        }
+    }
+
+    // Hàm gọi API Nhận Chuyến
+    async function acceptRide(rideId) {
+        const token = document.getElementById('tokenInput').value.trim();
+        try {
+            const response = await fetch(`http://localhost:5173/api/Driver/accept-ride/${rideId}`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                // Đổi màu khung UI để báo hiệu đã nhận thành công
+                const rideDiv = document.getElementById(`ride-${rideId}`);
+                rideDiv.style.borderColor = "#4caf50";
+                rideDiv.innerHTML += `<br><span style="color: #4caf50;">✅ Đã chốt đơn! Vui lòng di chuyển đến điểm đón.</span>`;
+            } else {
+                const errText = await response.text();
+                alert("Không thể nhận chuyến: " + errText);
+            }
+        } catch (error) {
+            alert("Lỗi kết nối đến Server API.");
+            console.error(error);
+        }
+    }
+    async function acceptRide(rideId) {
+        const token = document.getElementById('tokenInput').value.trim();
+        try {
+            const response = await fetch(`http://localhost:5173/api/Driver/accept-ride/${rideId}`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+            });
+
+            if (response.ok) {
+                const rideDiv = document.getElementById(`ride-${rideId}`);
+                rideDiv.style.borderColor = "#4caf50";
+                rideDiv.innerHTML += `<br><span style="color: #4caf50;">✅ Đã chốt đơn! Bắt đầu bật GPS...</span>`;
+                
+                // 👇 THÊM DÒNG NÀY: Gọi hàm giả lập chạy xe
+                startTracking(rideId); 
+            } else {
+                alert("Không thể nhận chuyến: " + await response.text());
+            }
+        } catch (error) {
+            console.error(error);
+        }
+    }
+    function startTracking(rideId) {
+        let lat = 10.762622;
+        let lng = 106.660172;
+        logInfo("📍 Đang truyền vị trí trực tiếp về Server...");
+
+        // 👇 Gán setInterval vào biến gpsInterval
+        gpsInterval = setInterval(async () => {
+            lat += 0.0001; lng += 0.0001;
+            try {
+                await connection.invoke("UpdateLocation", rideId, lat, lng);
+                logInfo(`🚗 Xe đang chạy... Tọa độ: (${lat.toFixed(5)}, ${lng.toFixed(5)})`);
+            } catch (err) { }
+        }, 3000); 
+
+        // 👇 Hiện nút "Hoàn Thành Chuyến" cho tài xế bấm khi đến nơi
+        const rideDiv = document.getElementById(`ride-${rideId}`);
+        rideDiv.innerHTML += `
+            <br>
+            <button onclick="completeRide('${rideId}')" style="margin-top: 15px; background: #2196f3;">
+                🏁 Đã chở khách đến nơi (Hoàn Thành)
+            </button>
+        `;
+    }
+
+    // 👇 THÊM HÀM MỚI NÀY: Gọi API hoàn thành và tắt GPS
+    async function completeRide(rideId) {
+        const token = document.getElementById('tokenInput').value.trim();
+        try {
+            const response = await fetch(`http://localhost:5173/api/Driver/complete-ride/${rideId}`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (response.ok) {
+                clearInterval(gpsInterval); // Tắt bộ phát GPS
+                const rideDiv = document.getElementById(`ride-${rideId}`);
+                rideDiv.style.borderColor = "#9e9e9e"; // Đổi sang màu xám
+                rideDiv.innerHTML += `<br><span style="color: #2196f3;">🏁 Đã hoàn thành cuốc xe! Đang chờ cuốc mới...</span>`;
+                logInfo("🛑 Đã tắt hệ thống định vị GPS.");
+            } else {
+                alert("Lỗi: " + await response.text());
+            }
+        } catch (error) { console.error(error); }
+    }
+
+    // 👇 THÊM HÀM NÀY: Giả lập tài xế đang lái xe (thay đổi tọa độ mỗi 3 giây)
+    function startTracking(rideId) {
+        // Tọa độ giả định ban đầu (Ví dụ: Trung tâm TP.HCM)
+        let lat = 10.762622;
+        let lng = 106.660172;
+        logInfo("📍 Đang truyền vị trí trực tiếp về Server...");
+
+        // Cứ mỗi 3000ms (3 giây), xe sẽ "nhích" lên một chút và gửi về C#
+        setInterval(async () => {
+            lat += 0.0001; 
+            lng += 0.0001;
+            try {
+                // Gọi hàm UpdateLocation trên Hub C# bằng .invoke()
+                await connection.invoke("UpdateLocation", rideId, lat, lng);
+                logInfo(`🚗 Xe đang chạy... Tọa độ: (${lat.toFixed(5)}, ${lng.toFixed(5)})`);
+            } catch (err) {
+                console.error("Lỗi gửi GPS:", err);
+            }
+        }, 3000); 
+    }
+</script>
+</body>
+</html>
