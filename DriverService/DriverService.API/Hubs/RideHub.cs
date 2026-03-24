@@ -3,24 +3,32 @@ using DriverService.Application.Interfaces;
 
 namespace DriverService.API.Hubs;
 
-// BẮT BUỘC PHẢI CÓ : Hub<IRideHub> Ở ĐÂY
 public class RideHub : Hub<IRideHub>
 {
     public override async Task OnConnectedAsync()
     {
-        // Khắc phục luôn cảnh báo "Dereference null" bằng dấu ?
         if (Context.User?.IsInRole("Driver") == true)
         {
             await Groups.AddToGroupAsync(Context.ConnectionId, "Drivers");
         }
         await base.OnConnectedAsync();
     }
-    // Tài xế sẽ gọi hàm này liên tục mỗi 5 giây
+
+    // ✅ MỚI: Hàm để Khách và Tài xế "Vào chung một phòng" khi cuốc xe bắt đầu
+    public async Task JoinRideGroup(string rideId)
+    {
+        await Groups.AddToGroupAsync(Context.ConnectionId, rideId);
+    }
+
     public async Task UpdateLocation(string rideId, double lat, double lng)
     {
-        // Trong thực tế, bạn sẽ lấy ID của khách hàng từ chuyến xe (rideId)
-        // và gửi thẳng vào Group hoặc ConnectionId của riêng khách hàng đó.
-        // Tạm thời ở đây ta broadcast cho tất cả để dễ test.
-        await Clients.All.LocationUpdated(lat, lng);
+        // ✅ ĐÃ SỬA: Chỉ bắn tọa độ GPS cho những người ở trong Group (Phòng) của chuyến xe này
+        await Clients.Group(rideId).LocationUpdated(lat, lng);
+    }
+
+    public async Task SendChatMessage(string rideId, string senderRole, string message)
+    {
+        // ✅ ĐÃ SỬA: Chỉ gửi tin nhắn cho người trong cùng Group (Chống lộ tin nhắn)
+        await Clients.Group(rideId).ReceiveMessage(rideId, senderRole, message);
     }
 }

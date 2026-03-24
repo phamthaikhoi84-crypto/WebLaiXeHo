@@ -51,9 +51,12 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
-        // Demo: Kiểm tra DB (Thực tế phải hash password)
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
         if (user == null) return Unauthorized("Email không tồn tại");
+
+        // ✅ BỔ SUNG ĐOẠN NÀY ĐỂ KIỂM TRA MẬT KHẨU
+        if (user.PasswordHash != request.Password)
+            return Unauthorized("Mật khẩu không chính xác!");
 
         var token = _authService.GenerateToken(user.Email, user.Role, user.Id);
         return Ok(new { Token = token, Role = user.Role });

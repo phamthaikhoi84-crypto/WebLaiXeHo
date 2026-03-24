@@ -37,13 +37,21 @@ public class DriverController : ControllerBase
         var userId = Guid.Parse(userIdString);
         var driver = await _context.Drivers.FirstOrDefaultAsync(d => d.UserId == userId);
 
-        // 🚨 KHIÊN BẢO VỆ CHỐNG SẬP SERVER
-        if (driver == null)
+        // 🚨 KHIÊN BẢO VỆ 1: CHỐNG SẬP SERVER NẾU KHÔNG CÓ HỒ SƠ
+        if (driver == null) return BadRequest("Tài khoản chưa có hồ sơ tài xế.");
+
+        // ✅ CHẶN: TÀI XẾ CHƯA ĐƯỢC ADMIN DUYỆT
+        if (!driver.IsApproved)
+            return BadRequest("Hồ sơ của bạn đang chờ Admin phê duyệt. Vui lòng quay lại sau!");
+
+        // ✅ ĐÃ FIX LỖI "BẮT CÁ 2 TAY": KIỂM TRA TÀI XẾ CÓ ĐANG BẬN KHÔNG
+        var busyRide = await _context.Rides.FirstOrDefaultAsync(r => r.DriverId == driver.Id && r.Status == RideStatus.Accepted);
+        if (busyRide != null)
         {
-            return BadRequest("Tài khoản của bạn CHƯA CÓ HỒ SƠ TÀI XẾ trong Database. Vui lòng tạo tài khoản mới!");
+            return BadRequest("Bạn đang thực hiện một chuyến xe khác. Vui lòng hoàn thành trước khi nhận chuyến mới!");
         }
 
-        // LOGIC CHẶN BẰNG B1
+        // 🚨 KHIÊN BẢO VỆ 2: CHẶN BẰNG B1 LÁI XE SỐ SÀN
         if (driver.LicenseType == LicenseType.B1 && ride.TransmissionType == TransmissionType.Manual)
         {
             return BadRequest("Lỗi: Bằng B1 của bạn không được phép điều khiển xe số sàn. Vui lòng bỏ qua cuốc này!");
@@ -53,7 +61,7 @@ public class DriverController : ControllerBase
         ride.Status = RideStatus.Accepted;
 
         await _context.SaveChangesAsync();
-        await _hubContext.Clients.All.RideStatusUpdated("Accepted");
+        await _hubContext.Clients.All.RideStatusUpdated(ride.Id, "Accepted");
 
         return Ok(new { Message = "Nhận chuyến thành công!", RideId = ride.Id });
     }
@@ -65,10 +73,30 @@ public class DriverController : ControllerBase
         if (ride == null || ride.Status != RideStatus.Accepted)
             return BadRequest("Chuyến xe không tồn tại hoặc chưa được nhận.");
 
+        var customer = await _context.Users.FindAsync(ride.UserId);
+        var driver = await _context.Drivers.Include(d => d.User).FirstOrDefaultAsync(d => d.Id == ride.DriverId);
+
+        if (customer != null && driver != null)
+        {
+            // ✅ PHÂN LUỒNG DÒNG TIỀN THEO HÌNH THỨC THANH TOÁN
+            if (ride.PaymentMethod == "Wallet")
+            {
+                // Trả bằng ví: Trừ tiền khách, Cộng 80% cho Tài xế
+                customer.Balance -= ride.Price;
+                driver.User.Balance += ride.Price * 0.8m;
+            }
+            else
+            {
+                // Trả bằng tiền mặt: Khách đưa tiền mặt trực tiếp cho Tài xế (100%)
+                // Nên Hệ thống sẽ truy thu 20% phí nền tảng từ ví điện tử của Tài xế
+                driver.User.Balance -= ride.Price * 0.2m;
+            }
+        }
+
         ride.Status = RideStatus.Completed;
         await _context.SaveChangesAsync();
-        await _hubContext.Clients.All.RideStatusUpdated("Completed");
+        await _hubContext.Clients.Group(ride.Id.ToString()).RideStatusUpdated(ride.Id, "Completed");
 
-        return Ok(new { Message = "Đã hoàn thành chuyến xe!" });
+        return Ok(new { Message = "Đã hoàn thành chuyến xe & Thanh toán thành công!" });
     }
 }
