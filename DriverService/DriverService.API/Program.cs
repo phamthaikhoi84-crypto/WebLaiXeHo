@@ -109,4 +109,48 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHub<RideHub>("/hubs/ride");
 
+// Đảm bảo Database luôn được tự động cập nhật
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<DriverService.Infrastructure.Data.AppDbContext>();
+    dbContext.Database.Migrate();
+
+    // 👇 TỰ ĐỘNG TẠO DỮ LIỆU MẪU (SEED DATA) NẾU DB TRỐNG
+    if (!dbContext.Users.Any())
+    {
+        // 1. Tạo tài khoản Khách hàng
+        var customerId = Guid.NewGuid();
+        dbContext.Users.Add(new DriverService.Domain.Entities.User
+        {
+            Id = customerId,
+            Email = "user@test.com",
+            PasswordHash = "123",
+            Role = "User"
+        });
+
+        // 2. Tạo tài khoản Tài xế
+        var driverUserId = Guid.NewGuid();
+        dbContext.Users.Add(new DriverService.Domain.Entities.User
+        {
+            Id = driverUserId,
+            Email = "driver@test.com",
+            PasswordHash = "123",
+            Role = "Driver"
+        });
+
+        // Lưu Users trước để lấy ID
+        dbContext.SaveChanges();
+
+        // 3. Tạo hồ sơ Tài xế (Gắn liền với User Tài xế ở trên) và ÉP BẰNG B1
+        dbContext.Drivers.Add(new DriverService.Domain.Entities.Driver
+        {
+            Id = Guid.NewGuid(),
+            UserId = driverUserId,
+            LicenseType = DriverService.Domain.Enums.LicenseType.B1 // <--- Tài xế này chỉ có bằng B1
+        });
+
+        dbContext.SaveChanges();
+    }
+}
+
 app.Run();

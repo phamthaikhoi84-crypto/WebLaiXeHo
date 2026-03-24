@@ -1,0 +1,10 @@
+# Visual Studio
+.vs/
+
+# Build results
+[Bb]in/
+[Oo]bj/
+
+# Rider / Mac
+.idea/
+.DS_Store

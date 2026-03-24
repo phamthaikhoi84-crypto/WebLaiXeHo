@@ -34,14 +34,19 @@ public class DriverController : ControllerBase
         var userId = Guid.Parse(User.FindFirstValue("id")!);
         var driver = await _context.Drivers.FirstOrDefaultAsync(d => d.UserId == userId);
 
-        // 3. Cập nhật trạng thái
+        // 👇 3. LOGIC NGHIỆP VỤ LÁI XE HỘ: KIỂM TRA BẰNG LÁI
+        if (driver.LicenseType == LicenseType.B1 && ride.TransmissionType == TransmissionType.Manual)
+        {
+            return BadRequest("Lỗi: Bằng B1 của bạn không được phép điều khiển xe số sàn. Vui lòng bỏ qua cuốc này!");
+        }
+
+        // 4. Cập nhật trạng thái
         ride.DriverId = driver.Id;
         ride.Status = RideStatus.Accepted;
 
         await _context.SaveChangesAsync();
 
-        // 4. REALTIME: Thông báo cho Khách hàng rằng tài xế đang đến
-        // (Trong thực tế ta sẽ gửi đến Group riêng của UserId đó)
+        // 5. Bắn SignalR
         await _hubContext.Clients.All.RideStatusUpdated("Accepted");
 
         return Ok(new { Message = "Nhận chuyến thành công!", RideId = ride.Id });

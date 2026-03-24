@@ -1,4 +1,6 @@
-﻿namespace DriverService.Domain.Entities;
+﻿using DriverService.Domain.Enums;
+
+namespace DriverService.Domain.Entities;
 
 public class Driver
 {
@@ -7,6 +9,6 @@ public class Driver
     public bool IsOnline { get; set; } = false;
     public string CurrentLocation { get; set; } = string.Empty; // Có thể lưu dạng Toạ độ (Lat, Long)
     public string? AvatarUrl { get; set; }
-
+    public LicenseType LicenseType { get; set; }
     public User User { get; set; } = null!;
 }

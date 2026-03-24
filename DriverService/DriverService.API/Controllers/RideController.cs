@@ -1,9 +1,12 @@
-﻿using DriverService.Application.Interfaces;
+﻿using DriverService.API.Hubs;
+using DriverService.Application.Interfaces;
 using DriverService.Domain.Entities;
+using DriverService.Domain.Enums;
+using DriverService.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
-using DriverService.API.Hubs;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
 namespace DriverService.API.Controllers;
@@ -11,13 +14,20 @@ namespace DriverService.API.Controllers;
 [Route("api/[controller]")]
 [ApiController]
 [Authorize(Roles = "User")]
-// 👇 SỬ DỤNG PRIMARY CONSTRUCTOR CỦA C# 12 (Không cần viết hàm constructor dài dòng nữa)
-public class RideController(IRideRepository rideRepo, IHubContext<RideHub, IRideHub> hubContext) : ControllerBase
+public class RideController : ControllerBase
 {
+    private readonly AppDbContext _context;
+    private readonly IHubContext<RideHub, IRideHub> _hubContext;
+
+    public RideController(AppDbContext context, IHubContext<RideHub, IRideHub> hubContext)
+    {
+        _context = context;
+        _hubContext = hubContext;
+    }
+
     [HttpPost("book")]
     public async Task<IActionResult> BookRide([FromBody] RideDto request)
     {
-        // 👇 KHẮC PHỤC LỖI NULL REFERENCE BẰNG CÁCH KIỂM TRA NULL HOẶC DÙNG GÁN MẶC ĐỊNH
         var userIdString = User.FindFirstValue("id");
         if (string.IsNullOrEmpty(userIdString)) return Unauthorized();
 
@@ -27,22 +37,33 @@ public class RideController(IRideRepository rideRepo, IHubContext<RideHub, IRide
             PickupLocation = request.PickupLocation,
             Destination = request.Destination,
             Distance = request.Distance,
-            Price = (decimal)request.Distance * 15000m
+            Price = (decimal)request.Distance * 15000m,
+            VehicleType = request.VehicleType,
+            TransmissionType = request.TransmissionType,
+            Status = RideStatus.Pending // Đảm bảo trạng thái ban đầu là Pending
         };
 
-        await rideRepo.AddAsync(ride);
+        // Dùng _context để lưu vào Database thay vì rideRepo
+        _context.Rides.Add(ride);
+        await _context.SaveChangesAsync();
 
-        // Bắn thông báo realtime đến tất cả tài xế
-        await hubContext.Clients.Group("Drivers").ReceiveNewRideRequest(new
+        // Object chứa đầy đủ thông tin gửi qua SignalR cho Frontend
+        var rideData = new
         {
-            ride.Id,
-            ride.PickupLocation,
-            ride.Destination,
-            Price = ride.Price
-        });
+            id = ride.Id,
+            pickupLocation = ride.PickupLocation,
+            destination = ride.Destination,
+            distance = ride.Distance,
+            price = ride.Price,
+            vehicleType = ride.VehicleType,
+            transmissionType = ride.TransmissionType
+        };
 
-        return Ok(ride);
+        // Bắn cho tất cả tài xế
+        await _hubContext.Clients.All.ReceiveNewRideRequest(rideData);
+
+        return Ok(new { Message = "Đặt xe thành công!", RideId = ride.Id });
     }
 }
 
-public record RideDto(string PickupLocation, string Destination, double Distance);
+public record RideDto(string PickupLocation, string Destination, double Distance, VehicleType VehicleType, TransmissionType TransmissionType);

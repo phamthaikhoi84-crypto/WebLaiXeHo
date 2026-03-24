@@ -18,4 +18,6 @@ public class Ride
 
     public User User { get; set; } = null!;
     public Driver? Driver { get; set; }
+    public VehicleType VehicleType { get; set; }
+    public TransmissionType TransmissionType { get; set; }
 }

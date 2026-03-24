@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  # --- MÁY CHỦ 1: DATABASE SQL SERVER ---
+  sqldb:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=SuperSecretPassw0rd! # Mật khẩu tự đặt
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqldata:/var/opt/mssql # Lưu lại dữ liệu dù máy ảo tắt
+
+  # --- MÁY CHỦ 2: API BACKEND CỦA BẠN ---
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5173:8080" # Nối cổng 8080 bên trong ra cổng 5173 bên ngoài (để Frontend của bạn vẫn gọi được bình thường)
+    environment:
+      # Ghi đè Connection String, trỏ thẳng vào máy chủ 'sqldb' ở trên
+      - ConnectionStrings__DefaultConnection=Server=sqldb;Database=DriverServiceDb;User=sa;Password=SuperSecretPassw0rd!;TrustServerCertificate=True;
+    depends_on:
+      - sqldb # Phải chờ Database chạy lên xong mới được chạy API
+
+volumes:
+  sqldata:
