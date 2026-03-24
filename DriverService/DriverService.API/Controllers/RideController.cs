@@ -13,7 +13,7 @@ namespace DriverService.API.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-[Authorize(Roles = "User")]
+[Authorize]
 public class RideController : ControllerBase
 {
     private readonly AppDbContext _context;
@@ -26,6 +26,7 @@ public class RideController : ControllerBase
     }
 
     [HttpPost("book")]
+    [Authorize(Roles = "User")]
     public async Task<IActionResult> BookRide([FromBody] RideDto request)
     {
         var userIdString = User.FindFirstValue("id");
@@ -64,6 +65,57 @@ public class RideController : ControllerBase
 
         return Ok(new { Message = "Đặt xe thành công!", RideId = ride.Id });
     }
+    [HttpGet("history")]
+    [Authorize(Roles = "User")]
+    public async Task<IActionResult> GetMyHistory()
+    {
+        // 1. Lấy ID của Khách hàng đang đăng nhập từ Token
+        var userIdString = User.FindFirstValue("id");
+        if (string.IsNullOrEmpty(userIdString)) return Unauthorized();
+        var userId = Guid.Parse(userIdString);
+
+        // 2. Tìm tất cả chuyến xe của khách này, sắp xếp mới nhất lên đầu
+        var history = await _context.Rides
+            .Where(r => r.UserId == userId)
+            .OrderByDescending(r => r.CreatedAt)
+            .Select(r => new
+            {
+                r.Id,
+                r.PickupLocation,
+                r.Destination,
+                r.Distance,
+                r.Price,
+                Status = r.Status.ToString(), // Chuyển số Enum (0,1,2,3) thành chữ (Pending, Accepted, Completed)
+                r.CreatedAt
+            })
+            .ToListAsync();
+
+        return Ok(history);
+    }
+    // API lấy danh sách các cuốc xe ĐANG CHỜ (Pending) từ Database SQL
+    [HttpGet("pending")]
+    [Authorize(Roles = "Driver")]
+    public async Task<IActionResult> GetPendingRides()
+    {
+        // Chọc thẳng xuống SQL tìm các chuyến xe có Status = Pending (Chưa ai nhận)
+        var pendingRides = await _context.Rides
+            .Where(r => r.Status == RideStatus.Pending)
+            .OrderByDescending(r => r.CreatedAt) // Mới nhất xếp lên trên
+            .Select(r => new
+            {
+                r.Id,
+                r.PickupLocation,
+                r.Destination,
+                r.Distance,
+                r.Price,
+                r.VehicleType,
+                r.TransmissionType
+            })
+            .ToListAsync();
+
+        return Ok(pendingRides);
+    }
+
 }
 
 public record RideDto(string PickupLocation, string Destination, double Distance, VehicleType VehicleType, TransmissionType TransmissionType);

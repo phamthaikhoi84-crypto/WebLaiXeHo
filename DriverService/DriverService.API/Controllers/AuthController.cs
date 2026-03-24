@@ -14,7 +14,40 @@ public class AuthController : ControllerBase
         _context = context;
         _authService = new DriverService.Application.Services.AuthService();
     }
+    // 1. Thêm API Đăng Ký
+    [HttpPost("register")]
+    public async Task<IActionResult> Register([FromBody] RegisterDto request)
+    {
+        var isExist = await _context.Users.AnyAsync(u => u.Email == request.Email);
+        if (isExist) return BadRequest("Email này đã được sử dụng!");
 
+        var newUser = new DriverService.Domain.Entities.User
+        {
+            Id = Guid.NewGuid(),
+            Email = request.Email,
+            PasswordHash = request.Password,
+            Role = request.Role
+        };
+        _context.Users.Add(newUser);
+
+        // Tự động tạo hồ sơ dựa trên thông tin chọn từ Form
+        if (request.Role == "Driver")
+        {
+            var newDriver = new DriverService.Domain.Entities.Driver
+            {
+                Id = Guid.NewGuid(),
+                UserId = newUser.Id,
+                // Lấy thông tin bằng lái từ Client gửi lên (Nếu không có thì mặc định gán B2)
+                LicenseType = request.LicenseType.HasValue
+                    ? (DriverService.Domain.Enums.LicenseType)request.LicenseType.Value
+                    : DriverService.Domain.Enums.LicenseType.B2
+            };
+            _context.Drivers.Add(newDriver);
+        }
+
+        await _context.SaveChangesAsync();
+        return Ok(new { Message = "Đăng ký thành công!" });
+    }
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
@@ -28,3 +61,4 @@ public class AuthController : ControllerBase
 }
 
 public record LoginRequest(string Email, string Password);
+public record RegisterDto(string Email, string Password, string Role, int? LicenseType);
