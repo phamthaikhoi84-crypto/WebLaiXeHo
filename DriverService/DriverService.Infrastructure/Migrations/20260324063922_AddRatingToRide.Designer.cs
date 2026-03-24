@@ -4,6 +4,7 @@ using DriverService.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DriverService.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260324063922_AddRatingToRide")]
+    partial class AddRatingToRide
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -35,17 +38,8 @@ namespace DriverService.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("IsApproved")
-                        .HasColumnType("bit");
-
                     b.Property<bool>("IsOnline")
                         .HasColumnType("bit");
-
-                    b.Property<string>("LicenseImage")
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("LicenseType")
                         .HasColumnType("int");
@@ -58,6 +52,16 @@ namespace DriverService.Infrastructure.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("Drivers");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("ab545dae-39d9-4374-90d2-5bb71c99a9f9"),
+                            CurrentLocation = "10.7, 106.6",
+                            IsOnline = true,
+                            LicenseType = 0,
+                            UserId = new Guid("33333333-3333-3333-3333-333333333333")
+                        });
                 });
 
             modelBuilder.Entity("DriverService.Domain.Entities.Ride", b =>
@@ -82,16 +86,6 @@ namespace DriverService.Infrastructure.Migrations
                     b.Property<Guid?>("DriverId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("PaymentMethod")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<double>("PickupLat")
-                        .HasColumnType("float");
-
-                    b.Property<double>("PickupLng")
-                        .HasColumnType("float");
-
                     b.Property<string>("PickupLocation")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -111,9 +105,6 @@ namespace DriverService.Infrastructure.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid?>("UserId1")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<int>("VehicleType")
                         .HasColumnType("int");
 
@@ -123,8 +114,6 @@ namespace DriverService.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.HasIndex("UserId1");
-
                     b.ToTable("Rides");
                 });
 
@@ -133,12 +122,6 @@ namespace DriverService.Infrastructure.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Avatar")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<decimal>("Balance")
-                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("Email")
                         .IsRequired()
@@ -152,9 +135,6 @@ namespace DriverService.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("Phone")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("Role")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -162,6 +142,24 @@ namespace DriverService.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Users");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("22222222-2222-2222-2222-222222222222"),
+                            Email = "user@test.com",
+                            Name = "Khách Hàng Test",
+                            PasswordHash = "123",
+                            Role = "User"
+                        },
+                        new
+                        {
+                            Id = new Guid("33333333-3333-3333-3333-333333333333"),
+                            Email = "driver@test.com",
+                            Name = "Tài Xế Test",
+                            PasswordHash = "123",
+                            Role = "Driver"
+                        });
                 });
 
             modelBuilder.Entity("DriverService.Domain.Entities.Driver", b =>
@@ -179,18 +177,13 @@ namespace DriverService.Infrastructure.Migrations
                 {
                     b.HasOne("DriverService.Domain.Entities.Driver", "Driver")
                         .WithMany()
-                        .HasForeignKey("DriverId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .HasForeignKey("DriverId");
 
                     b.HasOne("DriverService.Domain.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("DriverService.Domain.Entities.User", null)
                         .WithMany("Rides")
-                        .HasForeignKey("UserId1");
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Driver");
 

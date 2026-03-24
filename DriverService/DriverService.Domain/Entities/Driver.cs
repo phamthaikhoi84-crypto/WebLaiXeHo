@@ -11,4 +11,7 @@ public class Driver
     public string? AvatarUrl { get; set; }
     public LicenseType LicenseType { get; set; }
     public User User { get; set; } = null!;
+    public bool IsActive { get; set; } = true;
+    public bool IsApproved { get; set; } = false;
+    public string? LicenseImage { get; set; }
 }

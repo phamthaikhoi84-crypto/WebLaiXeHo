@@ -16,8 +16,13 @@ public class Ride
     public RideStatus Status { get; set; } = RideStatus.Pending;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-    public User User { get; set; } = null!;
-    public Driver? Driver { get; set; }
+    public virtual User? User { get; set; }
+    public virtual Driver? Driver { get; set; }
     public VehicleType VehicleType { get; set; }
     public TransmissionType TransmissionType { get; set; }
+    public int? Rating { get; set; } // Điểm sao (1-5)
+    public string? Comment { get; set; } // Nhận xét của khách
+    public string PaymentMethod { get; set; } = "Cash";
+    public double PickupLat { get; set; }
+    public double PickupLng { get; set; }
 }

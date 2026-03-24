@@ -17,37 +17,18 @@ public class AppDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        // 1. Seed Admin (Đã có trong hình của bạn)
-        var adminId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        // 1. Chốt chặt liên kết giữa Ride và User (Khách hàng)
+        modelBuilder.Entity<Ride>()
+            .HasOne(r => r.User)    // Bắt đúng thuộc tính User trong class Ride
+            .WithMany()
+            .HasForeignKey(r => r.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
 
-        // 2. Seed Khách hàng mẫu
-        var customerId = Guid.Parse("22222222-2222-2222-2222-222222222222");
-        modelBuilder.Entity<User>().HasData(new User
-        {
-            Id = customerId,
-            Name = "Khách Hàng Test",
-            Email = "user@test.com",
-            PasswordHash = "123", // Lưu ý: Thực tế cần hash
-            Role = "User"
-        });
-
-        // 3. Seed Tài xế mẫu
-        var driverUserId = Guid.Parse("33333333-3333-3333-3333-333333333333");
-        modelBuilder.Entity<User>().HasData(new User
-        {
-            Id = driverUserId,
-            Name = "Tài Xế Test",
-            Email = "driver@test.com",
-            PasswordHash = "123",
-            Role = "Driver"
-        });
-
-        modelBuilder.Entity<Driver>().HasData(new Driver
-        {
-            Id = Guid.NewGuid(),
-            UserId = driverUserId,
-            IsOnline = true,
-            CurrentLocation = "10.7, 106.6"
-        });
+        // 2. Chốt chặt liên kết giữa Ride và Driver (Tài xế)
+        modelBuilder.Entity<Ride>()
+            .HasOne(r => r.Driver)  // Bắt đúng thuộc tính Driver trong class Ride
+            .WithMany()
+            .HasForeignKey(r => r.DriverId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

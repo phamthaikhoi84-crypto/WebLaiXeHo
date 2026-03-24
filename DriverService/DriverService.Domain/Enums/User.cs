@@ -8,6 +8,9 @@ public class User
     public string PasswordHash { get; set; } = string.Empty;
     public string Role { get; set; } = "User"; // User, Driver, Admin
 
-    // Navigation properties
+    public string? Phone { get; set; }
+    public string? Avatar { get; set; }
+
     public ICollection<Ride> Rides { get; set; } = [];
+    public decimal Balance { get; set; } = 0;
 }
