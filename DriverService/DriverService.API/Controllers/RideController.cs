@@ -96,11 +96,13 @@ public class RideController : ControllerBase
         var driverId = driver?.Id;
 
         var ride = await _context.Rides
-            .Where(r => (r.UserId == userId || (driverId != null && r.DriverId == driverId)) && r.Status == RideStatus.Accepted)
+            .Where(r =>
+                (r.UserId == userId && r.Status == RideStatus.Pending) ||
+                ((r.UserId == userId || (driverId != null && r.DriverId == driverId)) && r.Status == RideStatus.Accepted)
+            )
             .OrderByDescending(r => r.CreatedAt).FirstOrDefaultAsync();
 
-        // ✅ SỬA LỖI 404 KHI TẢI TRANG: Báo cho Frontend biết là Không có chuyến
-        if (ride == null) return Ok(new { IsEmpty = true });
+        if (ride == null) return Ok(new { IsEmpty = true }); // Trả về IsEmpty cho Frontend
 
         return Ok(new
         {
@@ -108,6 +110,7 @@ public class RideController : ControllerBase
             PickupLocation = ride.PickupLocation,
             Destination = ride.Destination,
             Price = ride.Price,
+            Status = ride.Status.ToString(),
             Role = ride.UserId == userId ? "User" : "Driver"
         });
     }
