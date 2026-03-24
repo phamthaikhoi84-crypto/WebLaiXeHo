@@ -984,3 +984,237 @@ window.hideCallModal = function() {
     if(window.callTimer) clearInterval(window.callTimer);
     callState = 'idle';
 }
+
+// ==========================================
+// 🎙️ HỆ THỐNG AI VOICE BOOKING (ĐẶT XE BẰNG GIỌNG NÓI)
+// ==========================================
+let recognition;
+let isListening = false;
+
+function initSpeechRecognition() {
+    window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!window.SpeechRecognition) {
+        Swal.fire({...swalOpts, icon: 'error', text: 'Trình duyệt của bạn không hỗ trợ nhận diện giọng nói. Hãy dùng Google Chrome bản mới nhất!'});
+        return false;
+    }
+    
+    recognition = new SpeechRecognition();
+    recognition.lang = 'vi-VN'; // Set ngôn ngữ Tiếng Việt chuẩn
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = function() {
+        isListening = true;
+        document.getElementById('voicePulse').classList.add('animate-ping');
+        document.getElementById('voicePulse').classList.remove('hidden');
+        document.getElementById('voiceIcon').classList.add('text-red-200');
+        document.getElementById('voiceText').innerText = "ĐANG NGHE... HÃY NÓI LỘ TRÌNH CỦA BẠN";
+    };
+
+    recognition.onresult = function(event) {
+        const speechResult = event.results[0][0].transcript;
+        console.log("🗣️ Giọng nói thu được: ", speechResult);
+        processVoiceCommand(speechResult);
+    };
+
+    recognition.onerror = function(event) {
+        console.error("Lỗi Mic: ", event.error);
+        resetVoiceUI("Không nghe rõ, vui lòng thử lại!");
+    };
+
+    recognition.onend = function() {
+        isListening = false;
+        resetVoiceUI("Chạm để nói lộ trình");
+    };
+    return true;
+}
+
+function resetVoiceUI(text) {
+    const pulse = document.getElementById('voicePulse');
+    if(pulse) pulse.classList.add('hidden');
+    pulse.classList.remove('animate-ping');
+    document.getElementById('voiceIcon').classList.remove('text-red-200');
+    document.getElementById('voiceText').innerText = text;
+}
+
+window.startVoiceBooking = function() {
+    if (!recognition && !initSpeechRecognition()) return;
+    if (isListening) recognition.stop();
+    else recognition.start(); // Sẽ yêu cầu cấp quyền Micro ở lần đầu tiên
+}
+
+// ==========================================
+// 🧠 BỘ LỌC TỪ ĐIỂN SỬA NGỌNG & TIẾNG LÓNG CHO NGƯỜI SAY
+// ==========================================
+  // Ép thêm Context vào query tìm kiếm
+// 3. TỪ ĐIỂN SỬA NGỌNG (Dành cho khách say)
+function autoCorrectDrunkSpeech(text) {
+    let corrected = text.toLowerCase();
+    const corrections = {
+        "lan mác": "landmark 81",
+        "lăng mác": "landmark 81",
+        "mắc tám một": "landmark 81",
+        "tân sơn nhứt": "sân bay tân sơn nhất",
+        "bến xe miền đong": "bến xe miền đông",
+        "bến xe mìn đông": "bến xe miền đông",
+        "bến xe mìn tây": "bến xe miền tây",
+        "chợ bến thàn": "chợ bến thành",
+        "chợ bến tành": "chợ bến thành",
+        "phố đi bọ": "phố đi bộ nguyễn huệ",
+        "nguyễn hệ": "nguyễn huệ",
+        "bùi viện": "phố tây bùi viện",
+        "cầu xài gòn": "cầu sài gòn",
+        "ngã tư thủ đứt": "ngã tư thủ đức",
+        "suối tìn": "suối tiên",
+        "súi tiên": "suối tiên"
+    };
+    for (const [wrong, right] of Object.entries(corrections)) {
+        if (corrected.includes(wrong)) {
+            corrected = corrected.split(wrong).join(right);
+        }
+    }
+    return corrected;
+}
+
+// ✅ HÀM MỚI: GỌT GIŨA RÁC Ở CUỐI CÂU VÀ CHUẨN HÓA ĐỊA DANH
+function cleanExtractedLocation(loc) {
+    if (!loc) return "";
+    let cleaned = loc.trim();
+    
+    // Cắt bỏ các từ đệm/đại từ hay bị dính ở cuối câu
+    const trailingWords = [' tôi', ' anh', ' em', ' chị', ' nhé', ' nha', ' đi', ' luôn', ' giùm', ' dùm', ' vậy', ' đó', ' nè', ' đây', ' rùi', ' rồi', ' ạ'];
+    trailingWords.forEach(w => {
+        if (cleaned.endsWith(w)) {
+            cleaned = cleaned.substring(0, cleaned.length - w.length).trim();
+        }
+    });
+
+    // Bơm thêm ngữ cảnh cho các địa danh đặc biệt để bản đồ không bị ngu
+    if (cleaned === "tân sơn nhất" || cleaned === "sân bay") cleaned = "sân bay tân sơn nhất";
+    if (cleaned.includes("suối tiên") && !cleaned.includes("khu du lịch")) cleaned = "khu du lịch suối tiên";
+    if (cleaned.includes("bến thành") && !cleaned.includes("chợ")) cleaned = "chợ bến thành";
+
+    return cleaned;
+}
+
+// 4. NÃO BỘ AI XỬ LÝ LỘ TRÌNH (BẢN PRO MAX)
+async function processVoiceCommand(command) {
+    let pickup = "";
+    let destination = "";
+    console.log("🗣️ Bản ghi âm gốc: ", command);
+
+    let text = autoCorrectDrunkSpeech(command);
+
+    // Lọc từ nhiễu đầu câu
+    const noiseWords = [
+        'lmd pro', 'taxi', 'xe ôm', 'tài xế ơi', 'tài xế', 'ơi', 
+        'cho tôi', 'chở tôi', 'đưa tôi', 'giúp tôi', 'đưa em', 'đưa anh', 'chở anh', 'chở em',
+        'mình', 'bạn', 'hãy', 'làm ơn', 'nhanh lên'
+    ];
+    noiseWords.forEach(word => { text = text.split(word).join(' '); });
+    text = text.replace(/\s+/g, " ").trim();
+
+    // Regex bóc tách Điểm A và B
+    const pattern1 = /(?:từ|ở|tại|đang ở|đón ở|đón tại)\s+(.+?)\s+(?:đến|về|tới|qua|sang|vào)\s+(.+)/i;
+    const pattern2 = /(?:đến|về|tới|qua|sang|vào)\s+(.+?)\s+(?:từ|ở|tại|đang ở|đón ở|đón tại)\s+(.+)/i;
+    const pattern3 = /(?:đón)\s+(.+?)\s+(?:chở|đưa|ra|về|tới)\s+(.+)/i;
+    const patternDestOnly = /(?:đến|về|tới|qua|sang|vào|ra)\s+(.+)/i;
+
+    if (text.match(pattern1)) {
+        const match = text.match(pattern1);
+        pickup = match[1]; destination = match[2];
+    } else if (text.match(pattern2)) {
+        const match = text.match(pattern2);
+        destination = match[1]; pickup = match[2];
+    } else if (text.match(pattern3)) {
+        const match = text.match(pattern3);
+        pickup = match[1]; destination = match[2];
+    } else if (text.match(patternDestOnly)) {
+        const match = text.match(patternDestOnly);
+        destination = match[1]; 
+        if (pickupCoords) pickup = document.getElementById('txtPickup').value;
+    } else {
+        destination = text; 
+        if (pickupCoords) pickup = document.getElementById('txtPickup').value;
+    }
+
+    // ✅ GỌT GIŨA SẠCH SẼ ĐIỂM A VÀ B TRƯỚC KHI GỌI API
+    pickup = cleanExtractedLocation(pickup);
+    destination = cleanExtractedLocation(destination);
+
+    if (!destination || destination.length < 2) {
+        return Swal.fire({...swalOpts, icon: 'warning', text: 'Chưa nghe rõ điểm đến. Hãy thử nói: "Từ Bến Thành về Landmark 81"'});
+    }
+
+    Swal.fire({ title: 'AI Đang vẽ lộ trình...', html: `<b>Đón:</b> ${pickup || 'Vị trí hiện tại'}<br><b>Đến:</b> ${destination}`, didOpen: () => Swal.showLoading() });
+
+    const geoContext = ", Hồ Chí Minh, Việt Nam";
+
+    if (pickup && pickup !== document.getElementById('txtPickup').value) {
+        document.getElementById('txtPickup').value = "Đang tìm: " + pickup;
+        try {
+            const searchQuery = encodeURIComponent(pickup + geoContext);
+            const pRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${searchQuery}&limit=1`);
+            const pData = await pRes.json();
+            if(pData.length > 0) {
+                setMarker([parseFloat(pData[0].lon), parseFloat(pData[0].lat)], 'pickup', pickup, true);
+            } else { document.getElementById('txtPickup').value = pickup; }
+        } catch(e){}
+        await new Promise(r => setTimeout(r, 800)); 
+    }
+
+    document.getElementById('txtDestination').value = "Đang tìm: " + destination;
+    try {
+        const searchQuery = encodeURIComponent(destination + geoContext);
+        const dRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${searchQuery}&limit=1`);
+        const dData = await dRes.json();
+        if(dData.length > 0) {
+            setMarker([parseFloat(dData[0].lon), parseFloat(dData[0].lat)], 'dest', destination, true);
+        } else { document.getElementById('txtDestination').value = destination; }
+    } catch(e){}
+
+    Swal.close();
+    
+    if(pickupCoords && destCoords) {
+        Swal.fire({ ...swalOpts, icon: 'success', title: 'Hoàn tất', text: 'Đã tìm thấy lộ trình. Nhấn Xác nhận gọi xe!', timer: 2000, showConfirmButton: false });
+    } else {
+        Swal.fire({ ...swalOpts, icon: 'info', title: 'Thiếu tọa độ GPS', text: 'Hệ thống đã nhận diện được tên đường, nhưng không thể xác định vị trí chính xác trên bản đồ. Bạn có thể tự gõ thêm chi tiết (Ví dụ thêm số nhà).' });
+    }
+}
+
+// ==========================================
+// ⌨️ HỆ THỐNG TÌM KIẾM ĐỊA CHỈ KHI NHẬP TAY
+// ==========================================
+window.searchAddressManually = async function(inputId, type) {
+    const inputEl = document.getElementById(inputId);
+    let query = inputEl.value.trim();
+    if(!query || query.startsWith("Đang tìm")) return;
+    
+    Swal.fire({ title: 'Đang tìm vị trí...', text: query, didOpen: () => Swal.showLoading() });
+    
+    try {
+        // Tự động thêm đuôi HCM để bản đồ dễ tìm hơn
+        const geoContext = ", Hồ Chí Minh, Việt Nam";
+        const searchQuery = encodeURIComponent(query + geoContext);
+        
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${searchQuery}&limit=1`);
+        const data = await res.json();
+        
+        if(data.length > 0) {
+            // Tìm thấy -> Ghim lên bản đồ và vẽ đường
+            setMarker([parseFloat(data[0].lon), parseFloat(data[0].lat)], type, query, true);
+            Swal.close();
+        } else {
+            // Không tìm thấy
+            Swal.fire({
+                ...swalOpts, 
+                icon: 'error', 
+                title: 'Không tìm thấy vị trí',
+                text: 'Bản đồ không nhận diện được địa danh này. Vui lòng thử viết ngắn gọn hơn (VD: "Đại học Hutech") hoặc tự chấm trực tiếp trên bản đồ!'
+            });
+            inputEl.value = ''; // Xóa trắng để khách nhập lại
+        }
+    } catch(e) {
+        Swal.close();
+    }
+}
