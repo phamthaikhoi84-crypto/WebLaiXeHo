@@ -54,6 +54,8 @@ public class RideController : ControllerBase
                 VehicleType = request.VehicleType,
                 TransmissionType = request.TransmissionType,
                 PaymentMethod = request.PaymentMethod,
+                PickupLat = request.PickupLat, // ✅ LƯU TỌA ĐỘ
+                PickupLng = request.PickupLng, // ✅ LƯU TỌA ĐỘ
                 Status = RideStatus.Pending
             };
 
@@ -88,7 +90,18 @@ public class RideController : ControllerBase
     public async Task<IActionResult> GetPendingRides()
     {
         var pendingRides = await _context.Rides.Where(r => r.Status == RideStatus.Pending)
-            .OrderByDescending(r => r.CreatedAt).Select(r => new { r.Id, r.PickupLocation, r.Destination, r.Distance, r.Price, r.VehicleType, r.TransmissionType })
+            .OrderByDescending(r => r.CreatedAt)
+            .Select(r => new {
+                r.Id,
+                r.PickupLocation,
+                r.Destination,
+                r.Distance,
+                r.Price,
+                r.VehicleType,
+                r.TransmissionType,
+                r.PickupLat,
+                r.PickupLng // ✅ GỬI KÈM TỌA ĐỘ XUỐNG FRONTEND
+            })
             .ToListAsync();
         return Ok(pendingRides);
     }
@@ -209,5 +222,5 @@ public class RideController : ControllerBase
     }
 }
 
-public record RideDto(string PickupLocation, string Destination, double Distance, VehicleType VehicleType, TransmissionType TransmissionType, string PaymentMethod);
+public record RideDto(string PickupLocation, string Destination, double Distance, VehicleType VehicleType, TransmissionType TransmissionType, string PaymentMethod, double PickupLat, double PickupLng);
 public record RateDto(Guid RideId, int Rating, string Comment);

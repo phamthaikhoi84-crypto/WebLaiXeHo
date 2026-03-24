@@ -115,40 +115,37 @@ using (var scope = app.Services.CreateScope())
     var dbContext = scope.ServiceProvider.GetRequiredService<DriverService.Infrastructure.Data.AppDbContext>();
     dbContext.Database.Migrate();
 
-    // 👇 TỰ ĐỘNG TẠO DỮ LIỆU MẪU (SEED DATA) NẾU DB TRỐNG
-    if (!dbContext.Users.Any())
+    // ✅ ĐÃ FIX: Tách riêng việc kiểm tra tài khoản Admin. Dù DB có dữ liệu hay chưa, miễn chưa có Admin là nó sẽ tự tạo.
+    if (!dbContext.Users.Any(u => u.Email == "admin@test.com"))
     {
-        // 1. Tạo tài khoản Khách hàng
+        dbContext.Users.Add(new DriverService.Domain.Entities.User
+        {
+            Id = Guid.NewGuid(),
+            Email = "admin@test.com",
+            PasswordHash = "admin123",
+            Role = "Admin",
+            Balance = 0
+        });
+        dbContext.SaveChanges();
+    }
+
+    // Các tài khoản test khác
+    if (!dbContext.Users.Any(u => u.Email == "user@test.com"))
+    {
         var customerId = Guid.NewGuid();
-        dbContext.Users.Add(new DriverService.Domain.Entities.User
-        {
-            Id = customerId,
-            Email = "user@test.com",
-            PasswordHash = "123",
-            Role = "User"
-        });
+        dbContext.Users.Add(new DriverService.Domain.Entities.User { Id = customerId, Email = "user@test.com", PasswordHash = "123", Role = "User", Balance = 0 });
 
-        // 2. Tạo tài khoản Tài xế
         var driverUserId = Guid.NewGuid();
-        dbContext.Users.Add(new DriverService.Domain.Entities.User
-        {
-            Id = driverUserId,
-            Email = "driver@test.com",
-            PasswordHash = "123",
-            Role = "Driver"
-        });
-
-        // Lưu Users trước để lấy ID
+        dbContext.Users.Add(new DriverService.Domain.Entities.User { Id = driverUserId, Email = "driver@test.com", PasswordHash = "123", Role = "Driver", Balance = 0 });
         dbContext.SaveChanges();
 
-        // 3. Tạo hồ sơ Tài xế (Gắn liền với User Tài xế ở trên) và ÉP BẰNG B1
         dbContext.Drivers.Add(new DriverService.Domain.Entities.Driver
         {
             Id = Guid.NewGuid(),
             UserId = driverUserId,
-            LicenseType = DriverService.Domain.Enums.LicenseType.B1 // <--- Tài xế này chỉ có bằng B1
+            LicenseType = DriverService.Domain.Enums.LicenseType.B1,
+            IsApproved = true // Đã duyệt mẫu người này để test
         });
-
         dbContext.SaveChanges();
     }
 }
